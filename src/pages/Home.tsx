@@ -5,6 +5,18 @@ import WordWall from "@/components/WordWall"
 import { useWordStore } from "@/stores/useWordStore"
 import type { WordEntry } from "@/types/word"
 
+function isHeadwordCandidate(word: string): boolean {
+  if (word.length === 0 || word.length > 64) return false
+  if (!/^[A-Za-z]/.test(word)) return false
+  if (word.includes("..")) return false
+  if (word.includes("{") || word.includes("}") || word.includes("<") || word.includes(">")) return false
+  if (word.includes("/") || word.includes("\\") || word.includes("_")) return false
+  if (word.includes(".") || word.includes("@")) return false
+  if (!/^[A-Za-z](?:[A-Za-z' -]*[A-Za-z])?$/.test(word)) return false
+  if (word.includes("  ")) return false
+  return true
+}
+
 function parsePlainWordlist(text: string): WordEntry[] {
   const lines = text
     .split(/\r?\n/g)
@@ -15,6 +27,7 @@ function parsePlainWordlist(text: string): WordEntry[] {
   for (const line of lines) {
     const word = line.split(/[,\t;]/g)[0]?.trim()
     if (!word) continue
+    if (!isHeadwordCandidate(word)) continue
     entries.push({ id: word.toLowerCase(), word })
   }
   return entries

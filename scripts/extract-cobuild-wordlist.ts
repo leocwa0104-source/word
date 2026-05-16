@@ -18,6 +18,18 @@ function normalizeWord(raw: string): string {
   return raw.replace(/\u0000/g, "").trim()
 }
 
+function isHeadwordCandidate(word: string): boolean {
+  if (word.length === 0 || word.length > 64) return false
+  if (!/^[A-Za-z]/.test(word)) return false
+  if (word.includes("..")) return false
+  if (word.includes("{") || word.includes("}") || word.includes("<") || word.includes(">")) return false
+  if (word.includes("/") || word.includes("\\") || word.includes("_")) return false
+  if (word.includes(".") || word.includes("@")) return false
+  if (!/^[A-Za-z](?:[A-Za-z' -]*[A-Za-z])?$/.test(word)) return false
+  if (word.includes("  ")) return false
+  return true
+}
+
 async function main() {
   const root = path.resolve(__dirname, "..")
   const mdxPath = path.resolve(root, "柯林斯COBUILD高阶英汉双解学习词典.mdx")
@@ -35,6 +47,7 @@ async function main() {
     .map((x) => (typeof x === "string" ? x : (x as MdictEntry).keyText))
     .map(normalizeWord)
     .filter(Boolean)
+    .filter(isHeadwordCandidate)
 
   const unique = [...new Set(words.map((w) => w.toLowerCase()))]
   unique.sort((a, b) => a.localeCompare(b))
