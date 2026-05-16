@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { Moon, Sun, Upload, RotateCcw, Search } from "lucide-react"
+import { Moon, Sun, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/hooks/useTheme"
 
@@ -8,9 +8,6 @@ type Props = {
   onQueryChange: (value: string) => void
   totalCount: number
   visibleCount: number
-  onPickFile: (file: File) => void
-  onReset: () => void
-  source: "sample" | "imported"
 }
 
 export default function TopBar({
@@ -18,17 +15,14 @@ export default function TopBar({
   onQueryChange,
   totalCount,
   visibleCount,
-  onPickFile,
-  onReset,
-  source,
 }: Props) {
   const { isDark, toggleTheme } = useTheme()
 
   const summary = useMemo(() => {
-    const left = source === "imported" ? "已导入词表" : "示例词表"
+    const left = "COBUILD 高阶"
     if (visibleCount >= totalCount) return `${left} · ${totalCount.toLocaleString()}`
     return `${left} · ${visibleCount.toLocaleString()}/${totalCount.toLocaleString()}`
-  }, [source, totalCount, visibleCount])
+  }, [totalCount, visibleCount])
 
   return (
     <div className="sticky top-0 z-30 border-b border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.88)] backdrop-blur">
@@ -59,36 +53,6 @@ export default function TopBar({
             支持包含匹配，输入越长越精确
           </div>
         </label>
-
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.65)] px-3 py-2 text-sm transition hover:bg-[rgba(var(--paper2),0.85)]">
-          <Upload className="h-4 w-4" />
-          <span className="hidden sm:inline">导入词表</span>
-          <input
-            type="file"
-            accept=".json,.csv,application/json,text/csv"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) onPickFile(file)
-              e.currentTarget.value = ""
-            }}
-          />
-        </label>
-
-        <button
-          type="button"
-          onClick={onReset}
-          className={cn(
-            "inline-flex items-center gap-2 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] px-3 py-2 text-sm transition",
-            source === "imported"
-              ? "bg-[rgba(var(--paper2),0.65)] hover:bg-[rgba(var(--paper2),0.85)]"
-              : "cursor-not-allowed bg-[rgba(var(--paper2),0.25)] text-[rgba(var(--ink2),0.6)]",
-          )}
-          disabled={source !== "imported"}
-        >
-          <RotateCcw className="h-4 w-4" />
-          <span className="hidden sm:inline">重置</span>
-        </button>
 
         <button
           type="button"

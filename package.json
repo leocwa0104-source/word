@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "check": "tsc --noEmit",
     "server:dev": "nodemon",
-    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\""
+    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
+    "wordlist:cobuild": "tsx scripts/extract-cobuild-wordlist.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -36,6 +37,7 @@
     "autoprefixer": "^10.4.21",
     "babel-plugin-react-dev-locator": "^1.0.0",
     "concurrently": "^9.2.0",
+    "mdict-js": "^10.0.1",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "eslint": "^9.25.0",
