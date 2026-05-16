@@ -23,6 +23,3 @@ dist-ssr
 *.sln
 *.sw?
 .vite
-public/wordlist.txt
-*.mdx
-*.mdd
