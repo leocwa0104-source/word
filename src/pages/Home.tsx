@@ -47,8 +47,26 @@ export default function Home() {
         const res = await fetch("/wordlist.txt", { cache: "no-store" })
         if (!res.ok) return
         const text = await res.text()
+        const head = text.trimStart().slice(0, 200)
+        if (
+          head.startsWith("<") ||
+          head.startsWith("(") ||
+          head.startsWith("{") ||
+          head.startsWith("[") ||
+          head.startsWith("/*") ||
+          head.startsWith("//") ||
+          head.includes("{") ||
+          head.includes("}") ||
+          /\b(import|export|function|const|let|var)\b/.test(head) ||
+          head.includes("=>") ||
+          /<html|<head|<body/i.test(head)
+        ) {
+          return
+        }
         const entries = parsePlainWordlist(text)
-        if (entries.length === 0) return
+        if (entries.length < 5000) return
+        const firstLetters = new Set(entries.map((e) => e.word[0]?.toLowerCase()).filter(Boolean))
+        if (firstLetters.size < 18) return
         if (aborted) return
         setWords(entries)
       } catch {

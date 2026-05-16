@@ -9,6 +9,7 @@ type MdictEntry = { keyText: string }
 type MdictLike = {
   keyList?: Array<{ keyText: string } | string>
   dictionary?: { keyList?: Array<{ keyText: string } | string> }
+  lookup?: (word: string) => { keyText: string; definition: string | null } | undefined
 }
 
 const __filename = fileURLToPath(import.meta.url)
@@ -18,15 +19,51 @@ function normalizeWord(raw: string): string {
   return raw.replace(/\u0000/g, "").trim()
 }
 
+function looksLikeCamelOrPascal(raw: string): boolean {
+  return /[a-z][A-Z]/.test(raw)
+}
+
 function isHeadwordCandidate(word: string): boolean {
   if (word.length === 0 || word.length > 64) return false
   if (!/^[A-Za-z]/.test(word)) return false
+  if (looksLikeCamelOrPascal(word)) return false
   if (word.includes("..")) return false
   if (word.includes("{") || word.includes("}") || word.includes("<") || word.includes(">")) return false
   if (word.includes("/") || word.includes("\\") || word.includes("_")) return false
   if (word.includes(".") || word.includes("@")) return false
   if (!/^[A-Za-z](?:[A-Za-z' -]*[A-Za-z])?$/.test(word)) return false
   if (word.includes("  ")) return false
+  return true
+}
+
+function isLikelyDictionaryEntry(definition: string | null | undefined): boolean {
+  if (!definition) return false
+  const head = definition.trimStart().slice(0, 600)
+  if (!head) return false
+
+  if (
+    head.startsWith("/*") ||
+    head.startsWith("//") ||
+    head.startsWith("@") ||
+    head.startsWith("(") ||
+    head.startsWith("{") ||
+    head.startsWith("[")
+  ) {
+    return false
+  }
+
+  if (
+    head.includes("{") ||
+    head.includes("}") ||
+    /\b(import|export|function|const|let|var)\b/.test(head) ||
+    head.includes("=>") ||
+    /@font-face/i.test(head) ||
+    /--tw-/i.test(head) ||
+    /\btailwind\b/.test(head)
+  ) {
+    return false
+  }
+
   return true
 }
 
@@ -43,11 +80,15 @@ async function main() {
   const dict = new Mdict(mdxPath)
 
   const rawKeyList = (dict.keyList ?? dict.dictionary?.keyList ?? []) as Array<{ keyText: string } | string>
-  const words = rawKeyList
-    .map((x) => (typeof x === "string" ? x : (x as MdictEntry).keyText))
-    .map(normalizeWord)
-    .filter(Boolean)
-    .filter(isHeadwordCandidate)
+  const words: string[] = []
+  for (const x of rawKeyList) {
+    const raw = normalizeWord(typeof x === "string" ? x : (x as MdictEntry).keyText)
+    if (!raw) continue
+    if (!isHeadwordCandidate(raw)) continue
+    const res = dict.lookup?.(raw)
+    if (!isLikelyDictionaryEntry(res?.definition)) continue
+    words.push(raw)
+  }
 
   const unique = [...new Set(words.map((w) => w.toLowerCase()))]
   unique.sort((a, b) => a.localeCompare(b))
