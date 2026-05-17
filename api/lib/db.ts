@@ -11,9 +11,14 @@ function getPool(): Pool {
     throw new Error('DATABASE_URL missing')
   }
 
+  const needsSsl =
+    process.env.NODE_ENV === 'production' ||
+    /(^|[?&])sslmode=require(&|$)/i.test(connectionString) ||
+    /neon\.tech/i.test(connectionString)
+
   pool = new Pool({
     connectionString,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+    ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
   })
 
   return pool
@@ -42,4 +47,3 @@ export async function dbQuery<T = any>(text: string, params?: any[]) {
   const p = getPool()
   return p.query<T>(text, params)
 }
-
