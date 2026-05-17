@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/stores/useAuthStore"
@@ -23,6 +23,7 @@ function errorText(code: string): string {
 export default function AuthDialog({ open, mode, onClose }: Props) {
   const register = useAuthStore((s) => s.register)
   const login = useAuthStore((s) => s.login)
+  const panelRef = useRef<HTMLDivElement | null>(null)
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
@@ -35,6 +36,9 @@ export default function AuthDialog({ open, mode, onClose }: Props) {
     setError(null)
     setPassword("")
     setConfirm("")
+    requestAnimationFrame(() => {
+      panelRef.current?.scrollTo({ top: 0 })
+    })
   }, [open, mode])
 
   const title = useMemo(() => (mode === "login" ? "登录" : "注册"), [mode])
@@ -42,15 +46,13 @@ export default function AuthDialog({ open, mode, onClose }: Props) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[60]">
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute inset-0 bg-[rgba(var(--shadow),0.45)] backdrop-blur-sm"
-        aria-label="关闭"
-      />
-      <div className="relative flex h-full items-center justify-center p-4">
-        <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-auto rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.92)] shadow-[0_24px_80px_rgba(var(--shadow),0.55)]">
+    <div className="fixed inset-0 z-[60] overflow-y-auto">
+      <div onClick={onClose} className="fixed inset-0 bg-[rgba(var(--shadow),0.45)] backdrop-blur-sm" aria-label="关闭" />
+      <div className="relative flex min-h-[100dvh] items-center justify-center p-4">
+        <div
+          ref={panelRef}
+          className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-auto rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.92)] shadow-[0_24px_80px_rgba(var(--shadow),0.55)]"
+        >
           <div className="flex items-center justify-between border-b border-[rgba(var(--hairline),var(--hairline-a))] px-6 py-4">
             <div className="font-[var(--font-display)] text-[18px] font-[650]">{title}</div>
             <button
