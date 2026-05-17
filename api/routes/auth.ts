@@ -4,23 +4,10 @@
  */
 import { Router, type Request, type Response } from 'express'
 import crypto from 'node:crypto'
+import { dbQuery } from '../lib/db.js'
+import { signJwt, verifyJwt } from '../lib/jwt.js'
 
 const router = Router()
-
-type UserRecord = {
-  username: string
-  salt: string
-  passwordHash: string
-  createdAt: string
-}
-
-type SessionRecord = {
-  username: string
-  expiresAt: number
-}
-
-const users = new Map<string, UserRecord>()
-const sessions = new Map<string, SessionRecord>()
 
 function isValidUsername(username: string): boolean {
   if (username.length < 3 || username.length > 32) return false
@@ -35,25 +22,12 @@ function hashPassword(password: string, salt: Buffer): Buffer {
   return crypto.scryptSync(password, salt, 64)
 }
 
-function createToken(): string {
-  const buf = crypto.randomBytes(32)
-  return buf.toString('base64url')
-}
-
 function getToken(req: Request): string | undefined {
   const h = req.header('authorization') ?? ''
   if (h.toLowerCase().startsWith('bearer ')) {
     return h.slice(7).trim() || undefined
   }
-  const b = req.body as any
-  const t = typeof b?.token === 'string' ? b.token : undefined
-  return t || undefined
-}
-
-function cleanupSessions(now: number) {
-  for (const [token, s] of sessions.entries()) {
-    if (s.expiresAt <= now) sessions.delete(token)
-  }
+  return undefined
 }
 
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
@@ -71,25 +45,23 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
   }
 
   const key = username.toLowerCase()
-  if (users.has(key)) {
-    res.status(409).json({ success: false, error: 'user_exists' })
+  try {
+    const salt = crypto.randomBytes(16)
+    const passwordHash = hashPassword(password, salt)
+    await dbQuery(
+      'insert into users (username, username_lower, salt, password_hash) values ($1, $2, $3, $4)',
+      [username, key, salt.toString('base64'), passwordHash.toString('base64')],
+    )
+  } catch (e: any) {
+    const code = typeof e?.code === 'string' ? e.code : ''
+    if (code === '23505') {
+      res.status(409).json({ success: false, error: 'user_exists' })
+      return
+    }
+    res.status(500).json({ success: false, error: 'server_error' })
     return
   }
-
-  const salt = crypto.randomBytes(16)
-  const passwordHash = hashPassword(password, salt)
-  const user: UserRecord = {
-    username,
-    salt: salt.toString('base64'),
-    passwordHash: passwordHash.toString('base64'),
-    createdAt: new Date().toISOString(),
-  }
-  users.set(key, user)
-
-  const token = createToken()
-  const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 14
-  sessions.set(token, { username, expiresAt })
-
+  const token = signJwt(username, 60 * 60 * 24 * 14)
   res.status(201).json({ success: true, token, user: { username } })
 })
 
@@ -103,46 +75,54 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     return
   }
 
-  const user = users.get(username.toLowerCase())
+  const key = username.toLowerCase()
+  const r = await dbQuery<{ username: string; salt: string; password_hash: string }>(
+    'select username, salt, password_hash from users where username_lower = $1 limit 1',
+    [key],
+  )
+  const user = r.rows[0]
   if (!user) {
     res.status(401).json({ success: false, error: 'invalid_credentials' })
     return
   }
 
   const salt = Buffer.from(user.salt, 'base64')
-  const expected = Buffer.from(user.passwordHash, 'base64')
+  const expected = Buffer.from(user.password_hash, 'base64')
   const actual = hashPassword(password, salt)
   if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
     res.status(401).json({ success: false, error: 'invalid_credentials' })
     return
   }
 
-  cleanupSessions(Date.now())
-  const token = createToken()
-  const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 14
-  sessions.set(token, { username: user.username, expiresAt })
+  const token = signJwt(user.username, 60 * 60 * 24 * 14)
   res.status(200).json({ success: true, token, user: { username: user.username } })
 })
 
 router.post('/logout', async (req: Request, res: Response): Promise<void> => {
-  const token = getToken(req)
-  if (token) sessions.delete(token)
   res.status(200).json({ success: true })
 })
 
 router.get('/me', async (req: Request, res: Response): Promise<void> => {
-  cleanupSessions(Date.now())
   const token = getToken(req)
   if (!token) {
     res.status(401).json({ success: false, error: 'missing_token' })
     return
   }
-  const s = sessions.get(token)
-  if (!s) {
+  const payload = verifyJwt(token)
+  if (!payload) {
     res.status(401).json({ success: false, error: 'invalid_token' })
     return
   }
-  res.status(200).json({ success: true, user: { username: s.username } })
+
+  const key = payload.sub.toLowerCase()
+  const r = await dbQuery<{ username: string }>('select username from users where username_lower = $1 limit 1', [key])
+  const u = r.rows[0]
+  if (!u) {
+    res.status(401).json({ success: false, error: 'invalid_token' })
+    return
+  }
+
+  res.status(200).json({ success: true, user: { username: u.username } })
 })
 
 export default router
