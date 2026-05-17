@@ -3,14 +3,17 @@ import { LogOut, UserRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 import AuthDialog from "@/components/AuthDialog"
 import { useAuthStore } from "@/stores/useAuthStore"
+import { useShallow } from "zustand/shallow"
 
 export default function AuthControls() {
-  const { isReady, user, bootstrap, logout } = useAuthStore((s) => ({
-    isReady: s.isReady,
-    user: s.user,
-    bootstrap: s.bootstrap,
-    logout: s.logout,
-  }))
+  const { isReady, user, bootstrap, logout } = useAuthStore(
+    useShallow((s) => ({
+      isReady: s.isReady,
+      user: s.user,
+      bootstrap: s.bootstrap,
+      logout: s.logout,
+    })),
+  )
 
   const [open, setOpen] = useState<null | "login" | "register">(null)
 
@@ -87,4 +90,3 @@ export default function AuthControls() {
     </>
   )
 }
-
