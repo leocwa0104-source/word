@@ -38,6 +38,8 @@ type WordDetailPayload = {
   error?: string
 }
 
+const POS_OPTIONS = ["n.", "v.", "adj.", "adv.", "pron.", "num.", "art.", "prep.", "conj.", "int."] as const
+
 function formatTime(input: string): string {
   try {
     return new Date(input).toLocaleString()
@@ -76,7 +78,7 @@ export default function WordDetail() {
   const [memories, setMemories] = useState<MemoryItem[]>([])
   const [applications, setApplications] = useState<ApplicationItem[]>([])
 
-  const [defPos, setDefPos] = useState("")
+  const [defPos, setDefPos] = useState<(typeof POS_OPTIONS)[number]>("n.")
   const [defMeaning, setDefMeaning] = useState("")
   const [defSubmitting, setDefSubmitting] = useState(false)
   const [defError, setDefError] = useState<string | null>(null)
@@ -217,12 +219,17 @@ export default function WordDetail() {
                     <div className="grid gap-2">
                       <div className="text-xs text-[rgb(var(--ink2))]">添加释义（词性 + 中文释义）</div>
                       <div className="grid grid-cols-3 gap-2">
-                        <input
+                        <select
                           value={defPos}
-                          onChange={(e) => setDefPos(e.target.value)}
-                          placeholder="词性，如 n."
+                          onChange={(e) => setDefPos(e.target.value as (typeof POS_OPTIONS)[number])}
                           className="col-span-1 rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.6)] px-3 py-2 text-sm outline-none"
-                        />
+                        >
+                          {POS_OPTIONS.map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
+                          ))}
+                        </select>
                         <input
                           value={defMeaning}
                           onChange={(e) => setDefMeaning(e.target.value)}
@@ -260,7 +267,7 @@ export default function WordDetail() {
                           const created = r.json?.definition as DefinitionItem | undefined
                           if (created) {
                             setDefinitions((prev) => [created, ...prev])
-                            setDefPos("")
+                            setDefPos("n.")
                             setDefMeaning("")
                           }
                         }}

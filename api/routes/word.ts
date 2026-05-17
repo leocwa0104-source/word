@@ -4,6 +4,8 @@ import { verifyJwt } from '../lib/jwt.js'
 
 const router = Router()
 
+const ALLOWED_POS = new Set(['n.', 'v.', 'adj.', 'adv.', 'pron.', 'num.', 'art.', 'prep.', 'conj.', 'int.'])
+
 function normalizeWordParam(raw: string): { word: string; key: string } | null {
   if (!raw) return null
   let decoded = raw
@@ -141,7 +143,7 @@ router.post('/:word/definitions', async (req: Request, res: Response): Promise<v
   const body = req.body as any
   const pos = typeof body?.pos === 'string' ? body.pos.trim() : ''
   const meaningZh = typeof body?.meaningZh === 'string' ? body.meaningZh.trim() : ''
-  if (!pos || pos.length > 24 || !/^[A-Za-z][A-Za-z. -]*$/.test(pos)) {
+  if (!ALLOWED_POS.has(pos)) {
     res.status(400).json({ success: false, error: 'invalid_pos' })
     return
   }
@@ -227,4 +229,3 @@ router.post('/:word/applications', async (req: Request, res: Response): Promise<
 })
 
 export default router
-
