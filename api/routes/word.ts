@@ -48,6 +48,8 @@ router.get('/:word', async (req: Request, res: Response): Promise<void> => {
     return
   }
   const { word, key } = normalized
+  const me = await requireUser(req)
+  const meId = me?.id ?? null
 
   const defs = await dbQuery<{
     id: number
@@ -55,16 +57,26 @@ router.get('/:word', async (req: Request, res: Response): Promise<void> => {
     meaning_zh: string
     username: string
     created_at: string
+    like_count: number
+    liked_by_me: boolean
   }>(
     `
-    select d.id, d.pos, d.meaning_zh, u.username, d.created_at
+    select d.id, d.pos, d.meaning_zh, u.username, d.created_at,
+      coalesce(c.like_count, 0) as like_count,
+      (ul.user_id is not null) as liked_by_me
     from word_definitions d
     join users u on u.id = d.user_id
+    left join (
+      select definition_id, count(*)::int as like_count
+      from word_definition_likes
+      group by definition_id
+    ) c on c.definition_id = d.id
+    left join word_definition_likes ul on ul.definition_id = d.id and ul.user_id = $2
     where d.word_lower = $1
     order by d.created_at desc
     limit 200
   `,
-    [key],
+    [key, meId],
   )
 
   const mems = await dbQuery<{
@@ -72,16 +84,26 @@ router.get('/:word', async (req: Request, res: Response): Promise<void> => {
     content: string
     username: string
     created_at: string
+    like_count: number
+    liked_by_me: boolean
   }>(
     `
-    select m.id, m.content, u.username, m.created_at
+    select m.id, m.content, u.username, m.created_at,
+      coalesce(c.like_count, 0) as like_count,
+      (ul.user_id is not null) as liked_by_me
     from word_memories m
     join users u on u.id = m.user_id
+    left join (
+      select memory_id, count(*)::int as like_count
+      from word_memory_likes
+      group by memory_id
+    ) c on c.memory_id = m.id
+    left join word_memory_likes ul on ul.memory_id = m.id and ul.user_id = $2
     where m.word_lower = $1
     order by m.created_at desc
     limit 200
   `,
-    [key],
+    [key, meId],
   )
 
   const apps = await dbQuery<{
@@ -90,16 +112,26 @@ router.get('/:word', async (req: Request, res: Response): Promise<void> => {
     en: string
     username: string
     created_at: string
+    like_count: number
+    liked_by_me: boolean
   }>(
     `
-    select a.id, a.zh, a.en, u.username, a.created_at
+    select a.id, a.zh, a.en, u.username, a.created_at,
+      coalesce(c.like_count, 0) as like_count,
+      (ul.user_id is not null) as liked_by_me
     from word_applications a
     join users u on u.id = a.user_id
+    left join (
+      select application_id, count(*)::int as like_count
+      from word_application_likes
+      group by application_id
+    ) c on c.application_id = a.id
+    left join word_application_likes ul on ul.application_id = a.id and ul.user_id = $2
     where a.word_lower = $1
     order by a.created_at desc
     limit 200
   `,
-    [key],
+    [key, meId],
   )
 
   res.status(200).json({
@@ -111,12 +143,16 @@ router.get('/:word', async (req: Request, res: Response): Promise<void> => {
       meaningZh: d.meaning_zh,
       by: d.username,
       createdAt: d.created_at,
+      likeCount: d.like_count,
+      likedByMe: d.liked_by_me,
     })),
     memories: mems.rows.map((m) => ({
       id: m.id,
       content: m.content,
       by: m.username,
       createdAt: m.created_at,
+      likeCount: m.like_count,
+      likedByMe: m.liked_by_me,
     })),
     applications: apps.rows.map((a) => ({
       id: a.id,
@@ -124,6 +160,8 @@ router.get('/:word', async (req: Request, res: Response): Promise<void> => {
       en: a.en,
       by: a.username,
       createdAt: a.created_at,
+      likeCount: a.like_count,
+      likedByMe: a.liked_by_me,
     })),
   })
 })
@@ -226,6 +264,150 @@ router.post('/:word/applications', async (req: Request, res: Response): Promise<
     success: true,
     application: { id: r.id, zh, en, by: u.username, createdAt: r.created_at },
   })
+})
+
+router.post('/:word/definitions/:id/like', async (req: Request, res: Response): Promise<void> => {
+  const normalized = normalizeWordParam(String(req.params.word ?? ''))
+  if (!normalized) {
+    res.status(400).json({ success: false, error: 'invalid_word' })
+    return
+  }
+  const u = await requireUser(req)
+  if (!u) {
+    res.status(401).json({ success: false, error: 'unauthorized' })
+    return
+  }
+  const id = Number.parseInt(String(req.params.id ?? ''), 10)
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ success: false, error: 'invalid_id' })
+    return
+  }
+  const exists = await dbQuery<{ id: number }>('select id from word_definitions where id = $1 and word_lower = $2 limit 1', [
+    id,
+    normalized.key,
+  ])
+  if (!exists.rows[0]) {
+    res.status(404).json({ success: false, error: 'not_found' })
+    return
+  }
+
+  const toggled = await dbQuery<{ liked: boolean; like_count: number }>(
+    `
+    with existing as (
+      select 1 from word_definition_likes where definition_id = $1 and user_id = $2
+    ),
+    del as (
+      delete from word_definition_likes where definition_id = $1 and user_id = $2 returning 1
+    ),
+    ins as (
+      insert into word_definition_likes (definition_id, user_id)
+      select $1, $2 where not exists (select 1 from existing)
+      returning 1
+    )
+    select
+      exists(select 1 from ins) as liked,
+      (select count(*)::int from word_definition_likes where definition_id = $1) as like_count
+  `,
+    [id, u.id],
+  )
+  const r = toggled.rows[0]
+  res.status(200).json({ success: true, liked: r.liked, likeCount: r.like_count })
+})
+
+router.post('/:word/memories/:id/like', async (req: Request, res: Response): Promise<void> => {
+  const normalized = normalizeWordParam(String(req.params.word ?? ''))
+  if (!normalized) {
+    res.status(400).json({ success: false, error: 'invalid_word' })
+    return
+  }
+  const u = await requireUser(req)
+  if (!u) {
+    res.status(401).json({ success: false, error: 'unauthorized' })
+    return
+  }
+  const id = Number.parseInt(String(req.params.id ?? ''), 10)
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ success: false, error: 'invalid_id' })
+    return
+  }
+  const exists = await dbQuery<{ id: number }>('select id from word_memories where id = $1 and word_lower = $2 limit 1', [
+    id,
+    normalized.key,
+  ])
+  if (!exists.rows[0]) {
+    res.status(404).json({ success: false, error: 'not_found' })
+    return
+  }
+
+  const toggled = await dbQuery<{ liked: boolean; like_count: number }>(
+    `
+    with existing as (
+      select 1 from word_memory_likes where memory_id = $1 and user_id = $2
+    ),
+    del as (
+      delete from word_memory_likes where memory_id = $1 and user_id = $2 returning 1
+    ),
+    ins as (
+      insert into word_memory_likes (memory_id, user_id)
+      select $1, $2 where not exists (select 1 from existing)
+      returning 1
+    )
+    select
+      exists(select 1 from ins) as liked,
+      (select count(*)::int from word_memory_likes where memory_id = $1) as like_count
+  `,
+    [id, u.id],
+  )
+  const r = toggled.rows[0]
+  res.status(200).json({ success: true, liked: r.liked, likeCount: r.like_count })
+})
+
+router.post('/:word/applications/:id/like', async (req: Request, res: Response): Promise<void> => {
+  const normalized = normalizeWordParam(String(req.params.word ?? ''))
+  if (!normalized) {
+    res.status(400).json({ success: false, error: 'invalid_word' })
+    return
+  }
+  const u = await requireUser(req)
+  if (!u) {
+    res.status(401).json({ success: false, error: 'unauthorized' })
+    return
+  }
+  const id = Number.parseInt(String(req.params.id ?? ''), 10)
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ success: false, error: 'invalid_id' })
+    return
+  }
+  const exists = await dbQuery<{ id: number }>('select id from word_applications where id = $1 and word_lower = $2 limit 1', [
+    id,
+    normalized.key,
+  ])
+  if (!exists.rows[0]) {
+    res.status(404).json({ success: false, error: 'not_found' })
+    return
+  }
+
+  const toggled = await dbQuery<{ liked: boolean; like_count: number }>(
+    `
+    with existing as (
+      select 1 from word_application_likes where application_id = $1 and user_id = $2
+    ),
+    del as (
+      delete from word_application_likes where application_id = $1 and user_id = $2 returning 1
+    ),
+    ins as (
+      insert into word_application_likes (application_id, user_id)
+      select $1, $2 where not exists (select 1 from existing)
+      returning 1
+    )
+    select
+      exists(select 1 from ins) as liked,
+      (select count(*)::int from word_application_likes where application_id = $1) as like_count
+  `,
+    [id, u.id],
+  )
+  const r = toggled.rows[0]
+  res.status(200).json({ success: true, liked: r.liked, likeCount: r.like_count })
 })
 
 export default router

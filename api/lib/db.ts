@@ -72,6 +72,36 @@ async function ensureSchema() {
       );
       create index if not exists idx_word_applications_word_lower on word_applications(word_lower);
       create index if not exists idx_word_applications_user_id on word_applications(user_id);
+
+      create table if not exists word_definition_likes (
+        id bigserial primary key,
+        definition_id bigint not null references word_definitions(id) on delete cascade,
+        user_id bigint not null references users(id) on delete cascade,
+        created_at timestamptz not null default now(),
+        unique(definition_id, user_id)
+      );
+      create index if not exists idx_word_definition_likes_definition_id on word_definition_likes(definition_id);
+      create index if not exists idx_word_definition_likes_user_id on word_definition_likes(user_id);
+
+      create table if not exists word_memory_likes (
+        id bigserial primary key,
+        memory_id bigint not null references word_memories(id) on delete cascade,
+        user_id bigint not null references users(id) on delete cascade,
+        created_at timestamptz not null default now(),
+        unique(memory_id, user_id)
+      );
+      create index if not exists idx_word_memory_likes_memory_id on word_memory_likes(memory_id);
+      create index if not exists idx_word_memory_likes_user_id on word_memory_likes(user_id);
+
+      create table if not exists word_application_likes (
+        id bigserial primary key,
+        application_id bigint not null references word_applications(id) on delete cascade,
+        user_id bigint not null references users(id) on delete cascade,
+        created_at timestamptz not null default now(),
+        unique(application_id, user_id)
+      );
+      create index if not exists idx_word_application_likes_application_id on word_application_likes(application_id);
+      create index if not exists idx_word_application_likes_user_id on word_application_likes(user_id);
     `)
   })()
   return schemaReady

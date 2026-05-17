@@ -1,4 +1,4 @@
-import { ArrowLeft, Bookmark, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, Bookmark, CheckCircle2, Heart } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { cn } from "@/lib/utils"
@@ -12,6 +12,8 @@ type DefinitionItem = {
   meaningZh: string
   by: string
   createdAt: string
+  likeCount: number
+  likedByMe: boolean
 }
 
 type MemoryItem = {
@@ -19,6 +21,8 @@ type MemoryItem = {
   content: string
   by: string
   createdAt: string
+  likeCount: number
+  likedByMe: boolean
 }
 
 type ApplicationItem = {
@@ -27,6 +31,8 @@ type ApplicationItem = {
   en: string
   by: string
   createdAt: string
+  likeCount: number
+  likedByMe: boolean
 }
 
 type WordDetailPayload = {
@@ -77,6 +83,7 @@ export default function WordDetail() {
   const [definitions, setDefinitions] = useState<DefinitionItem[]>([])
   const [memories, setMemories] = useState<MemoryItem[]>([])
   const [applications, setApplications] = useState<ApplicationItem[]>([])
+  const [likeError, setLikeError] = useState<string | null>(null)
 
   const [defPos, setDefPos] = useState<(typeof POS_OPTIONS)[number]>("n.")
   const [defMeaning, setDefMeaning] = useState("")
@@ -100,7 +107,9 @@ export default function WordDetail() {
     setLoadError(null)
     ;(async () => {
       try {
-        const res = await fetch(`/api/word/${encodeURIComponent(w)}`, { method: "GET" })
+        const headers: Record<string, string> = {}
+        if (token) headers.authorization = `Bearer ${token}`
+        const res = await fetch(`/api/word/${encodeURIComponent(w)}`, { method: "GET", headers })
         const json = (await readJsonSafe(res)) as WordDetailPayload | null
         if (!res.ok || !json?.success) {
           if (aborted) return
@@ -122,7 +131,7 @@ export default function WordDetail() {
     return () => {
       aborted = true
     }
-  }, [decoded])
+  }, [decoded, token])
 
   async function authedPost(url: string, body: any): Promise<{ ok: true; json: any } | { ok: false; error: string }> {
     if (!token) return { ok: false, error: "unauthorized" }
@@ -138,6 +147,42 @@ export default function WordDetail() {
     } catch {
       return { ok: false, error: "network_error" }
     }
+  }
+
+  async function toggleDefinitionLike(id: number) {
+    setLikeError(null)
+    const r = await authedPost(`/api/word/${encodeURIComponent(decoded)}/definitions/${id}/like`, {})
+    if (!r.ok) {
+      setLikeError("error" in r ? r.error : "request_failed")
+      return
+    }
+    const liked = Boolean(r.json?.liked)
+    const likeCount = Number(r.json?.likeCount ?? 0)
+    setDefinitions((prev) => prev.map((d) => (d.id === id ? { ...d, likedByMe: liked, likeCount } : d)))
+  }
+
+  async function toggleMemoryLike(id: number) {
+    setLikeError(null)
+    const r = await authedPost(`/api/word/${encodeURIComponent(decoded)}/memories/${id}/like`, {})
+    if (!r.ok) {
+      setLikeError("error" in r ? r.error : "request_failed")
+      return
+    }
+    const liked = Boolean(r.json?.liked)
+    const likeCount = Number(r.json?.likeCount ?? 0)
+    setMemories((prev) => prev.map((m) => (m.id === id ? { ...m, likedByMe: liked, likeCount } : m)))
+  }
+
+  async function toggleApplicationLike(id: number) {
+    setLikeError(null)
+    const r = await authedPost(`/api/word/${encodeURIComponent(decoded)}/applications/${id}/like`, {})
+    if (!r.ok) {
+      setLikeError("error" in r ? r.error : "request_failed")
+      return
+    }
+    const liked = Boolean(r.json?.liked)
+    const likeCount = Number(r.json?.likeCount ?? 0)
+    setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, likedByMe: liked, likeCount } : a)))
   }
 
   return (
@@ -166,6 +211,7 @@ export default function WordDetail() {
               ) : loadError ? (
                 <div className="mt-2 text-xs text-[rgb(var(--ink2))]">加载失败：{loadError}</div>
               ) : null}
+              {likeError ? <div className="mt-2 text-xs text-[rgb(var(--ink2))]">点赞失败：{likeError}</div> : null}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -207,8 +253,21 @@ export default function WordDetail() {
                             </span>
                             {d.meaningZh}
                           </div>
-                          <div className="text-[11px] text-[rgba(var(--ink2),0.9)]">
-                            {d.by} · {formatTime(d.createdAt)}
+                          <div className="flex items-center gap-3 text-[11px] text-[rgba(var(--ink2),0.9)]">
+                            <div>
+                              {d.by} · {formatTime(d.createdAt)}
+                            </div>
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-1 transition hover:bg-[rgba(var(--paper2),0.75)]"
+                              onClick={() => toggleDefinitionLike(d.id)}
+                            >
+                              <Heart
+                                className={cn("h-4 w-4", d.likedByMe ? "text-[rgb(var(--accent))]" : "text-[rgba(var(--ink2),0.9)]")}
+                                fill={d.likedByMe ? "currentColor" : "none"}
+                              />
+                              <span>{d.likeCount ?? 0}</span>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -291,8 +350,21 @@ export default function WordDetail() {
                         className="rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.45)] px-4 py-3"
                       >
                         <div className="whitespace-pre-wrap text-sm">{m.content}</div>
-                        <div className="mt-2 text-[11px] text-[rgba(var(--ink2),0.9)]">
-                          {m.by} · {formatTime(m.createdAt)}
+                        <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-[rgba(var(--ink2),0.9)]">
+                          <div>
+                            {m.by} · {formatTime(m.createdAt)}
+                          </div>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-1 transition hover:bg-[rgba(var(--paper2),0.75)]"
+                            onClick={() => toggleMemoryLike(m.id)}
+                          >
+                            <Heart
+                              className={cn("h-4 w-4", m.likedByMe ? "text-[rgb(var(--accent))]" : "text-[rgba(var(--ink2),0.9)]")}
+                              fill={m.likedByMe ? "currentColor" : "none"}
+                            />
+                            <span>{m.likeCount ?? 0}</span>
+                          </button>
                         </div>
                       </div>
                     ))
@@ -373,8 +445,21 @@ export default function WordDetail() {
                             {a.en}
                           </div>
                         </div>
-                        <div className="mt-2 text-[11px] text-[rgba(var(--ink2),0.9)]">
-                          {a.by} · {formatTime(a.createdAt)}
+                        <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-[rgba(var(--ink2),0.9)]">
+                          <div>
+                            {a.by} · {formatTime(a.createdAt)}
+                          </div>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-1 transition hover:bg-[rgba(var(--paper2),0.75)]"
+                            onClick={() => toggleApplicationLike(a.id)}
+                          >
+                            <Heart
+                              className={cn("h-4 w-4", a.likedByMe ? "text-[rgb(var(--accent))]" : "text-[rgba(var(--ink2),0.9)]")}
+                              fill={a.likedByMe ? "currentColor" : "none"}
+                            />
+                            <span>{a.likeCount ?? 0}</span>
+                          </button>
                         </div>
                       </div>
                     ))
