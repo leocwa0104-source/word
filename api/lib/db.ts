@@ -37,6 +37,41 @@ async function ensureSchema() {
         password_hash text not null,
         created_at timestamptz not null default now()
       );
+
+      create table if not exists word_definitions (
+        id bigserial primary key,
+        word text not null,
+        word_lower text not null,
+        pos text not null,
+        meaning_zh text not null,
+        user_id bigint not null references users(id) on delete cascade,
+        created_at timestamptz not null default now()
+      );
+      create index if not exists idx_word_definitions_word_lower on word_definitions(word_lower);
+      create index if not exists idx_word_definitions_user_id on word_definitions(user_id);
+
+      create table if not exists word_memories (
+        id bigserial primary key,
+        word text not null,
+        word_lower text not null,
+        content text not null,
+        user_id bigint not null references users(id) on delete cascade,
+        created_at timestamptz not null default now()
+      );
+      create index if not exists idx_word_memories_word_lower on word_memories(word_lower);
+      create index if not exists idx_word_memories_user_id on word_memories(user_id);
+
+      create table if not exists word_applications (
+        id bigserial primary key,
+        word text not null,
+        word_lower text not null,
+        zh text not null,
+        en text not null,
+        user_id bigint not null references users(id) on delete cascade,
+        created_at timestamptz not null default now()
+      );
+      create index if not exists idx_word_applications_word_lower on word_applications(word_lower);
+      create index if not exists idx_word_applications_user_id on word_applications(user_id);
     `)
   })()
   return schemaReady
