@@ -2,6 +2,7 @@ import { ArrowLeft, Bookmark, CheckCircle2 } from "lucide-react"
 import { useMemo } from "react"
 import { Link, useParams } from "react-router-dom"
 import { useWordStore } from "@/stores/useWordStore"
+import AuthControls from "@/components/AuthControls"
 
 export default function WordDetail() {
   const { word } = useParams()
@@ -19,13 +20,16 @@ export default function WordDetail() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <Link
-        to="/"
-        className="inline-flex items-center gap-2 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.65)] px-4 py-2 text-sm shadow-[0_16px_40px_rgba(var(--shadow),var(--shadow-a))] transition hover:bg-[rgba(var(--paper2),0.9)]"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        返回词卡墙
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.65)] px-4 py-2 text-sm shadow-[0_16px_40px_rgba(var(--shadow),var(--shadow-a))] transition hover:bg-[rgba(var(--paper2),0.9)]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          返回词卡墙
+        </Link>
+        <AuthControls />
+      </div>
 
       <div className="mt-6 overflow-hidden rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.65)] shadow-[0_22px_60px_rgba(var(--shadow),var(--shadow-a))]">
         <div className="p-6 sm:p-8">

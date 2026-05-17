@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import { Moon, Sun, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/hooks/useTheme"
+import AuthControls from "@/components/AuthControls"
 
 type Props = {
   query: string
@@ -53,6 +54,8 @@ export default function TopBar({
             支持包含匹配，输入越长越精确
           </div>
         </label>
+
+        <AuthControls />
 
         <button
           type="button"
