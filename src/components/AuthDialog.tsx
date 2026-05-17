@@ -49,8 +49,8 @@ export default function AuthDialog({ open, mode, onClose }: Props) {
         className="absolute inset-0 bg-[rgba(var(--shadow),0.45)] backdrop-blur-sm"
         aria-label="关闭"
       />
-      <div className="relative flex h-full items-center justify-center px-4">
-        <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.92)] shadow-[0_24px_80px_rgba(var(--shadow),0.55)]">
+      <div className="relative flex h-full items-center justify-center p-4">
+        <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-auto rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.92)] shadow-[0_24px_80px_rgba(var(--shadow),0.55)]">
           <div className="flex items-center justify-between border-b border-[rgba(var(--hairline),var(--hairline-a))] px-6 py-4">
             <div className="font-[var(--font-display)] text-[18px] font-[650]">{title}</div>
             <button
