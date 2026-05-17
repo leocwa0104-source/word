@@ -46,6 +46,11 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
 
   const key = username.toLowerCase()
   try {
+    const existing = await dbQuery('select 1 from users where username_lower = $1 limit 1', [key])
+    if (existing.rows.length > 0) {
+      res.status(409).json({ success: false, error: 'user_exists' })
+      return
+    }
     const salt = crypto.randomBytes(16)
     const passwordHash = hashPassword(password, salt)
     await dbQuery(
