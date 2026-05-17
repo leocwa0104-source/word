@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/stores/useAuthStore"
@@ -44,9 +45,10 @@ export default function AuthDialog({ open, mode, onClose }: Props) {
   const title = useMemo(() => (mode === "login" ? "登录" : "注册"), [mode])
 
   if (!open) return null
+  if (typeof document === "undefined") return null
 
-  return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] overflow-y-auto">
       <div onClick={onClose} className="fixed inset-0 bg-[rgba(var(--shadow),0.45)] backdrop-blur-sm" aria-label="关闭" />
       <div className="relative flex min-h-[100dvh] items-start justify-center p-4 sm:items-center">
         <div
@@ -157,6 +159,7 @@ export default function AuthDialog({ open, mode, onClose }: Props) {
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
