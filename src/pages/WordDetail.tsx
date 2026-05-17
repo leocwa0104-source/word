@@ -19,7 +19,7 @@ export default function WordDetail() {
   const hit = useMemo(() => words.find((w) => w.word.toLowerCase() === decoded.toLowerCase()), [decoded, words])
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           to="/"
@@ -38,9 +38,7 @@ export default function WordDetail() {
               <div className="font-[var(--font-display)] text-[34px] font-[700] leading-none tracking-[0.01em] sm:text-[44px]">
                 {hit?.word ?? decoded}
               </div>
-              <div className="mt-2 text-sm text-[rgb(var(--ink2))]">
-                单词详情页用于承载：释义/例句/创意记忆内容流（下一步接后端与社区功能）。
-              </div>
+              <div className="mt-2 text-sm text-[rgb(var(--ink2))]">详情页由三个模块组成：释义 / 记忆方法 / 应用。</div>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -61,10 +59,30 @@ export default function WordDetail() {
           </div>
         </div>
 
-        <div className="border-t border-[rgba(var(--hairline),var(--hairline-a))] px-6 py-10 text-center sm:px-8">
-          <div className="font-[var(--font-display)] text-[18px] font-[650]">创意记忆内容：即将上线</div>
-          <div className="mt-2 text-sm text-[rgb(var(--ink2))]">
-            你可以先把主页“词卡墙”跑起来，并通过导入自己的词表来验证性能与体验。
+        <div className="border-t border-[rgba(var(--hairline),var(--hairline-a))] p-6 sm:p-8">
+          <div className="overflow-x-auto">
+            <div className="grid min-w-[960px] grid-cols-3 gap-4">
+              <section className="rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.55)] p-5 shadow-[0_16px_40px_rgba(var(--shadow),var(--shadow-a))]">
+                <div className="font-[var(--font-display)] text-[16px] font-[650]">释义</div>
+                <div className="mt-2 text-sm text-[rgb(var(--ink2))]">
+                  暂无释义。后续可接入词典数据源，或由社区用户贡献释义/例句。
+                </div>
+              </section>
+
+              <section className="rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.55)] p-5 shadow-[0_16px_40px_rgba(var(--shadow),var(--shadow-a))]">
+                <div className="font-[var(--font-display)] text-[16px] font-[650]">记忆方法</div>
+                <div className="mt-2 text-sm text-[rgb(var(--ink2))]">
+                  暂无内容。这里将展示联想法、词根词缀、谐音、图像化等创意记忆卡片。
+                </div>
+              </section>
+
+              <section className="rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.55)] p-5 shadow-[0_16px_40px_rgba(var(--shadow),var(--shadow-a))]">
+                <div className="font-[var(--font-display)] text-[16px] font-[650]">应用</div>
+                <div className="mt-2 text-sm text-[rgb(var(--ink2))]">
+                  暂无内容。这里将展示常用搭配、同反义词、真题语境、造句练习等应用模块。
+                </div>
+              </section>
+            </div>
           </div>
         </div>
       </div>
