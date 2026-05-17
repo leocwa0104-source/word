@@ -48,7 +48,7 @@ export default function AuthDialog({ open, mode, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-[60] overflow-y-auto">
       <div onClick={onClose} className="fixed inset-0 bg-[rgba(var(--shadow),0.45)] backdrop-blur-sm" aria-label="关闭" />
-      <div className="relative flex min-h-[100dvh] items-center justify-center p-4">
+      <div className="relative flex min-h-[100dvh] items-start justify-center p-4 sm:items-center">
         <div
           ref={panelRef}
           className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-auto rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.92)] shadow-[0_24px_80px_rgba(var(--shadow),0.55)]"
