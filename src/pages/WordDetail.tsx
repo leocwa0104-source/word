@@ -63,61 +63,76 @@ async function readJsonSafe(res: Response): Promise<any> {
   }
 }
 
-type DefinitionDetailDialogProps = {
+type RectLike = { left: number; top: number; width: number; height: number }
+
+type DefinitionPopoverProps = {
   open: boolean
+  anchor: RectLike | null
   item: DefinitionItem | null
   onClose: () => void
   onToggleLike: (id: number) => void
 }
 
-function DefinitionDetailDialog({ open, item, onClose, onToggleLike }: DefinitionDetailDialogProps) {
-  if (!open || !item) return null
+function DefinitionPopover({ open, anchor, item, onClose, onToggleLike }: DefinitionPopoverProps) {
+  useEffect(() => {
+    if (!open) return
+    const close = () => onClose()
+    window.addEventListener("scroll", close, true)
+    window.addEventListener("resize", close)
+    return () => {
+      window.removeEventListener("scroll", close, true)
+      window.removeEventListener("resize", close)
+    }
+  }, [onClose, open])
+
+  if (!open || !anchor || !item) return null
   if (typeof document === "undefined") return null
 
+  const maxW = 360
+  const margin = 12
+  const centerX = anchor.left + anchor.width / 2
+  const viewportW = typeof window === "undefined" ? 0 : window.innerWidth
+  const safeX = viewportW ? Math.min(Math.max(centerX, margin + maxW / 2), viewportW - margin - maxW / 2) : centerX
+  const placeAbove = anchor.top > 150
+  const top = placeAbove ? anchor.top - 10 : anchor.top + anchor.height + 10
+
   return createPortal(
-    <div className="fixed inset-0 z-[9999] overflow-y-auto">
-      <div onClick={onClose} className="fixed inset-0 bg-[rgba(var(--shadow),0.45)] backdrop-blur-sm" aria-label="关闭" />
-      <div className="relative flex min-h-[100dvh] items-start justify-center p-4 sm:items-center">
-        <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.92)] shadow-[0_24px_80px_rgba(var(--shadow),0.55)]">
-          <div className="flex items-center justify-between border-b border-[rgba(var(--hairline),var(--hairline-a))] px-6 py-4">
-            <div className="text-sm font-[650] text-[rgb(var(--ink2))]">释义详情</div>
+    <div className="fixed inset-0 z-[9999]" onClick={onClose}>
+      <div
+        className="w-[min(360px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.92)] shadow-[0_22px_60px_rgba(var(--shadow),0.55)]"
+        style={{ position: "fixed", left: safeX, top, transform: placeAbove ? "translate(-50%,-100%)" : "translate(-50%,0)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-[rgba(var(--hairline),var(--hairline-a))] px-4 py-3">
+          <div className="min-w-0 text-xs text-[rgb(var(--ink2))]">释义</div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.65)] transition hover:bg-[rgba(var(--paper2),0.9)]"
+            aria-label="关闭"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-4 py-3">
+          <div className="text-sm text-[rgb(var(--ink2))]">
+            {item.pos} / {item.meaningZh}
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div className="text-[11px] text-[rgba(var(--ink2),0.9)]">
+              {item.by} · {formatTime(item.createdAt)}
+            </div>
             <button
               type="button"
-              onClick={onClose}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.65)] transition hover:bg-[rgba(var(--paper2),0.9)]"
-              aria-label="关闭"
+              className="inline-flex items-center gap-1 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-1 transition hover:bg-[rgba(var(--paper2),0.75)]"
+              onClick={() => onToggleLike(item.id)}
             >
-              <X className="h-4 w-4" />
+              <Heart
+                className={cn("h-4 w-4", item.likedByMe ? "text-[rgb(var(--accent))]" : "text-[rgba(var(--ink2),0.9)]")}
+                fill={item.likedByMe ? "currentColor" : "none"}
+              />
+              <span className="text-[11px] text-[rgba(var(--ink2),0.9)]">{item.likeCount ?? 0}</span>
             </button>
-          </div>
-          <div className="px-6 py-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-0.5 text-[11px] text-[rgb(var(--ink2))]">
-                    {item.pos}
-                  </span>
-                  <div className="text-[15px] font-[650]">{item.meaningZh}</div>
-                </div>
-                <div className="mt-2 text-[11px] text-[rgba(var(--ink2),0.9)]">
-                  {item.by} · {formatTime(item.createdAt)}
-                </div>
-              </div>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-1 transition hover:bg-[rgba(var(--paper2),0.75)]"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggleLike(item.id)
-                }}
-              >
-                <Heart
-                  className={cn("h-4 w-4", item.likedByMe ? "text-[rgb(var(--accent))]" : "text-[rgba(var(--ink2),0.9)]")}
-                  fill={item.likedByMe ? "currentColor" : "none"}
-                />
-                <span className="text-[11px] text-[rgba(var(--ink2),0.9)]">{item.likeCount ?? 0}</span>
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -212,12 +227,12 @@ function DefinitionAddDialog({
 
 type DefinitionRowProps = {
   item: DefinitionItem
-  onOpen: (item: DefinitionItem) => void
-  onToggleLike: (id: number) => void
+  onOpen: (item: DefinitionItem, rect: RectLike) => void
 }
 
-function DefinitionRow({ item, onOpen, onToggleLike }: DefinitionRowProps) {
+function DefinitionRow({ item, onOpen }: DefinitionRowProps) {
   const pressTimer = useRef<number | null>(null)
+  const pressRect = useRef<RectLike | null>(null)
 
   function clearTimer() {
     if (pressTimer.current == null) return
@@ -226,42 +241,32 @@ function DefinitionRow({ item, onOpen, onToggleLike }: DefinitionRowProps) {
   }
 
   return (
-    <div
-      className="flex items-start justify-between gap-3 rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.35)] px-4 py-3"
-      onDoubleClick={() => onOpen(item)}
+    <button
+      type="button"
+      className="w-full rounded-2xl px-2 py-2 text-left transition hover:bg-[rgba(var(--paper),0.25)]"
+      onDoubleClick={(e) => {
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+        onOpen(item, { left: r.left, top: r.top, width: r.width, height: r.height })
+      }}
       onPointerDown={(e) => {
         clearTimer()
         if (e.pointerType !== "touch" && e.pointerType !== "pen") return
-        pressTimer.current = window.setTimeout(() => onOpen(item), 520)
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+        pressRect.current = { left: r.left, top: r.top, width: r.width, height: r.height }
+        pressTimer.current = window.setTimeout(() => {
+          if (!pressRect.current) return
+          onOpen(item, pressRect.current)
+        }, 520)
       }}
       onPointerUp={clearTimer}
       onPointerCancel={clearTimer}
       onPointerLeave={clearTimer}
       onPointerMove={clearTimer}
     >
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <span className="rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-0.5 text-[11px] text-[rgb(var(--ink2))]">
-            {item.pos}
-          </span>
-          <div className="text-sm text-[rgb(var(--ink2))]">{item.meaningZh}</div>
-        </div>
+      <div className="text-sm text-[rgb(var(--ink2))]">
+        {item.pos} / {item.meaningZh}
       </div>
-      <button
-        type="button"
-        className="inline-flex items-center gap-1 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-1 transition hover:bg-[rgba(var(--paper2),0.75)]"
-        onClick={(e) => {
-          e.stopPropagation()
-          onToggleLike(item.id)
-        }}
-      >
-        <Heart
-          className={cn("h-4 w-4", item.likedByMe ? "text-[rgb(var(--accent))]" : "text-[rgba(var(--ink2),0.9)]")}
-          fill={item.likedByMe ? "currentColor" : "none"}
-        />
-        <span className="text-[11px] text-[rgba(var(--ink2),0.9)]">{item.likeCount ?? 0}</span>
-      </button>
-    </div>
+    </button>
   )
 }
 
@@ -293,8 +298,9 @@ export default function WordDetail() {
   const [defSubmitting, setDefSubmitting] = useState(false)
   const [defError, setDefError] = useState<string | null>(null)
   const [defAddOpen, setDefAddOpen] = useState(false)
-  const [defDetailOpen, setDefDetailOpen] = useState(false)
-  const [defDetailItemId, setDefDetailItemId] = useState<number | null>(null)
+  const [defPopoverOpen, setDefPopoverOpen] = useState(false)
+  const [defPopoverItemId, setDefPopoverItemId] = useState<number | null>(null)
+  const [defPopoverAnchor, setDefPopoverAnchor] = useState<RectLike | null>(null)
 
   const [memContent, setMemContent] = useState("")
   const [memSubmitting, setMemSubmitting] = useState(false)
@@ -392,9 +398,9 @@ export default function WordDetail() {
   }
 
   const selectedDefinition = useMemo(() => {
-    if (defDetailItemId == null) return null
-    return definitions.find((d) => d.id === defDetailItemId) ?? null
-  }, [defDetailItemId, definitions])
+    if (defPopoverItemId == null) return null
+    return definitions.find((d) => d.id === defPopoverItemId) ?? null
+  }, [defPopoverItemId, definitions])
 
   async function submitDefinition() {
     setDefError(null)
@@ -491,11 +497,11 @@ export default function WordDetail() {
                   <DefinitionRow
                     key={d.id}
                     item={d}
-                    onOpen={(item) => {
-                      setDefDetailItemId(item.id)
-                      setDefDetailOpen(true)
-                    }}
-                    onToggleLike={toggleDefinitionLike}
+                      onOpen={(item, rect) => {
+                        setDefPopoverItemId(item.id)
+                        setDefPopoverAnchor(rect)
+                        setDefPopoverOpen(true)
+                      }}
                   />
                 ))
               )}
@@ -708,12 +714,14 @@ export default function WordDetail() {
         </div>
       </div>
 
-      <DefinitionDetailDialog
-        open={defDetailOpen}
+      <DefinitionPopover
+        open={defPopoverOpen}
+        anchor={defPopoverAnchor}
         item={selectedDefinition}
         onClose={() => {
-          setDefDetailOpen(false)
-          setDefDetailItemId(null)
+          setDefPopoverOpen(false)
+          setDefPopoverItemId(null)
+          setDefPopoverAnchor(null)
         }}
         onToggleLike={toggleDefinitionLike}
       />
