@@ -1,5 +1,6 @@
-import { ArrowLeft, Bookmark, CheckCircle2, Heart } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft, Bookmark, CheckCircle2, Heart, Plus, X } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { Link, useParams } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/stores/useAuthStore"
@@ -62,6 +63,208 @@ async function readJsonSafe(res: Response): Promise<any> {
   }
 }
 
+type DefinitionDetailDialogProps = {
+  open: boolean
+  item: DefinitionItem | null
+  onClose: () => void
+  onToggleLike: (id: number) => void
+}
+
+function DefinitionDetailDialog({ open, item, onClose, onToggleLike }: DefinitionDetailDialogProps) {
+  if (!open || !item) return null
+  if (typeof document === "undefined") return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] overflow-y-auto">
+      <div onClick={onClose} className="fixed inset-0 bg-[rgba(var(--shadow),0.45)] backdrop-blur-sm" aria-label="关闭" />
+      <div className="relative flex min-h-[100dvh] items-start justify-center p-4 sm:items-center">
+        <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.92)] shadow-[0_24px_80px_rgba(var(--shadow),0.55)]">
+          <div className="flex items-center justify-between border-b border-[rgba(var(--hairline),var(--hairline-a))] px-6 py-4">
+            <div className="text-sm font-[650] text-[rgb(var(--ink2))]">释义详情</div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.65)] transition hover:bg-[rgba(var(--paper2),0.9)]"
+              aria-label="关闭"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="px-6 py-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-0.5 text-[11px] text-[rgb(var(--ink2))]">
+                    {item.pos}
+                  </span>
+                  <div className="text-[15px] font-[650]">{item.meaningZh}</div>
+                </div>
+                <div className="mt-2 text-[11px] text-[rgba(var(--ink2),0.9)]">
+                  {item.by} · {formatTime(item.createdAt)}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-1 transition hover:bg-[rgba(var(--paper2),0.75)]"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleLike(item.id)
+                }}
+              >
+                <Heart
+                  className={cn("h-4 w-4", item.likedByMe ? "text-[rgb(var(--accent))]" : "text-[rgba(var(--ink2),0.9)]")}
+                  fill={item.likedByMe ? "currentColor" : "none"}
+                />
+                <span className="text-[11px] text-[rgba(var(--ink2),0.9)]">{item.likeCount ?? 0}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+type DefinitionAddDialogProps = {
+  open: boolean
+  pos: (typeof POS_OPTIONS)[number]
+  meaning: string
+  submitting: boolean
+  error: string | null
+  onClose: () => void
+  onPosChange: (pos: (typeof POS_OPTIONS)[number]) => void
+  onMeaningChange: (meaning: string) => void
+  onSubmit: () => void
+}
+
+function DefinitionAddDialog({
+  open,
+  pos,
+  meaning,
+  submitting,
+  error,
+  onClose,
+  onPosChange,
+  onMeaningChange,
+  onSubmit,
+}: DefinitionAddDialogProps) {
+  if (!open) return null
+  if (typeof document === "undefined") return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] overflow-y-auto">
+      <div onClick={onClose} className="fixed inset-0 bg-[rgba(var(--shadow),0.45)] backdrop-blur-sm" aria-label="关闭" />
+      <div className="relative flex min-h-[100dvh] items-start justify-center p-4 sm:items-center">
+        <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.92)] shadow-[0_24px_80px_rgba(var(--shadow),0.55)]">
+          <div className="flex items-center justify-between border-b border-[rgba(var(--hairline),var(--hairline-a))] px-6 py-4">
+            <div className="text-sm font-[650] text-[rgb(var(--ink2))]">添加释义</div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.65)] transition hover:bg-[rgba(var(--paper2),0.9)]"
+              aria-label="关闭"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="px-6 py-5">
+            <div className="grid gap-3">
+              <div className="grid grid-cols-3 gap-2">
+                <select
+                  value={pos}
+                  onChange={(e) => onPosChange(e.target.value as (typeof POS_OPTIONS)[number])}
+                  className="col-span-1 rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.65)] px-3 py-2 text-sm outline-none"
+                >
+                  {POS_OPTIONS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={meaning}
+                  onChange={(e) => onMeaningChange(e.target.value)}
+                  placeholder="中文释义"
+                  className="col-span-2 rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.65)] px-3 py-2 text-sm outline-none"
+                />
+              </div>
+              {error ? <div className="text-xs text-[rgb(var(--ink2))]">提交失败：{error}</div> : null}
+              <button
+                type="button"
+                disabled={submitting}
+                className={cn(
+                  "inline-flex items-center justify-center rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--accent),0.85)] px-4 py-2 text-sm font-[650] text-[rgb(var(--paper))] transition hover:bg-[rgba(var(--accent),0.95)]",
+                  submitting ? "opacity-70" : "",
+                )}
+                onClick={onSubmit}
+              >
+                {submitting ? "发送中…" : "发送"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+type DefinitionRowProps = {
+  item: DefinitionItem
+  onOpen: (item: DefinitionItem) => void
+  onToggleLike: (id: number) => void
+}
+
+function DefinitionRow({ item, onOpen, onToggleLike }: DefinitionRowProps) {
+  const pressTimer = useRef<number | null>(null)
+
+  function clearTimer() {
+    if (pressTimer.current == null) return
+    window.clearTimeout(pressTimer.current)
+    pressTimer.current = null
+  }
+
+  return (
+    <div
+      className="flex items-start justify-between gap-3 rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.35)] px-4 py-3"
+      onDoubleClick={() => onOpen(item)}
+      onPointerDown={(e) => {
+        clearTimer()
+        if (e.pointerType !== "touch" && e.pointerType !== "pen") return
+        pressTimer.current = window.setTimeout(() => onOpen(item), 520)
+      }}
+      onPointerUp={clearTimer}
+      onPointerCancel={clearTimer}
+      onPointerLeave={clearTimer}
+      onPointerMove={clearTimer}
+    >
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-0.5 text-[11px] text-[rgb(var(--ink2))]">
+            {item.pos}
+          </span>
+          <div className="text-sm text-[rgb(var(--ink2))]">{item.meaningZh}</div>
+        </div>
+      </div>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-1 transition hover:bg-[rgba(var(--paper2),0.75)]"
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggleLike(item.id)
+        }}
+      >
+        <Heart
+          className={cn("h-4 w-4", item.likedByMe ? "text-[rgb(var(--accent))]" : "text-[rgba(var(--ink2),0.9)]")}
+          fill={item.likedByMe ? "currentColor" : "none"}
+        />
+        <span className="text-[11px] text-[rgba(var(--ink2),0.9)]">{item.likeCount ?? 0}</span>
+      </button>
+    </div>
+  )
+}
+
 export default function WordDetail() {
   const { word } = useParams()
   const decoded = useMemo(() => {
@@ -89,6 +292,9 @@ export default function WordDetail() {
   const [defMeaning, setDefMeaning] = useState("")
   const [defSubmitting, setDefSubmitting] = useState(false)
   const [defError, setDefError] = useState<string | null>(null)
+  const [defAddOpen, setDefAddOpen] = useState(false)
+  const [defDetailOpen, setDefDetailOpen] = useState(false)
+  const [defDetailItemId, setDefDetailItemId] = useState<number | null>(null)
 
   const [memContent, setMemContent] = useState("")
   const [memSubmitting, setMemSubmitting] = useState(false)
@@ -185,6 +391,50 @@ export default function WordDetail() {
     setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, likedByMe: liked, likeCount } : a)))
   }
 
+  const selectedDefinition = useMemo(() => {
+    if (defDetailItemId == null) return null
+    return definitions.find((d) => d.id === defDetailItemId) ?? null
+  }, [defDetailItemId, definitions])
+
+  async function submitDefinition() {
+    setDefError(null)
+    if (!user?.username || !token) {
+      setDefError("请先登录")
+      return
+    }
+    const pos = defPos.trim()
+    const meaningZh = defMeaning.trim()
+    if (!pos || !meaningZh) {
+      setDefError("请填写词性和中文释义")
+      return
+    }
+    setDefSubmitting(true)
+    const r = await authedPost(`/api/word/${encodeURIComponent(decoded)}/definitions`, { pos, meaningZh })
+    setDefSubmitting(false)
+    if (!r.ok) {
+      setDefError("error" in r ? r.error : "request_failed")
+      return
+    }
+    const created = r.json?.definition as Partial<DefinitionItem> | undefined
+    if (created?.id) {
+      setDefinitions((prev) => [
+        {
+          id: created.id as number,
+          pos: String(created.pos ?? pos),
+          meaningZh: String(created.meaningZh ?? meaningZh),
+          by: String(created.by ?? user.username),
+          createdAt: String(created.createdAt ?? new Date().toISOString()),
+          likeCount: 0,
+          likedByMe: false,
+        },
+        ...prev,
+      ])
+      setDefPos("n.")
+      setDefMeaning("")
+      setDefAddOpen(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -230,114 +480,44 @@ export default function WordDetail() {
               </button>
             </div>
           </div>
+
+          <div className="mt-5">
+            <div className="text-xs text-[rgba(var(--ink2),0.9)]">释义</div>
+            <div className="mt-2 grid gap-2">
+              {definitions.length === 0 ? (
+                <div className="text-sm text-[rgb(var(--ink2))]">暂无释义。</div>
+              ) : (
+                definitions.map((d) => (
+                  <DefinitionRow
+                    key={d.id}
+                    item={d}
+                    onOpen={(item) => {
+                      setDefDetailItemId(item.id)
+                      setDefDetailOpen(true)
+                    }}
+                    onToggleLike={toggleDefinitionLike}
+                  />
+                ))
+              )}
+
+              <button
+                type="button"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.25)] px-4 py-3 text-sm text-[rgb(var(--ink2))] transition hover:bg-[rgba(var(--paper),0.4)]"
+                onClick={() => {
+                  setDefError(null)
+                  setDefAddOpen(true)
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                添加释义
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="border-t border-[rgba(var(--hairline),var(--hairline-a))] p-6 sm:p-8">
           <div className="overflow-x-auto">
-            <div className="grid min-w-[960px] grid-cols-3 gap-4">
-              <section className="rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.55)] p-5 shadow-[0_16px_40px_rgba(var(--shadow),var(--shadow-a))]">
-                <div className="font-[var(--font-display)] text-[16px] font-[650]">释义</div>
-                <div className="mt-3 grid gap-3">
-                  {definitions.length === 0 ? (
-                    <div className="text-sm text-[rgb(var(--ink2))]">暂无释义。</div>
-                  ) : (
-                    definitions.map((d) => (
-                      <div
-                        key={d.id}
-                        className="rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.45)] px-4 py-3"
-                      >
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <div className="text-sm font-[650]">
-                            <span className="mr-2 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-0.5 text-[11px]">
-                              {d.pos}
-                            </span>
-                            {d.meaningZh}
-                          </div>
-                          <div className="flex items-center gap-3 text-[11px] text-[rgba(var(--ink2),0.9)]">
-                            <div>
-                              {d.by} · {formatTime(d.createdAt)}
-                            </div>
-                            <button
-                              type="button"
-                              className="inline-flex items-center gap-1 rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.55)] px-2 py-1 transition hover:bg-[rgba(var(--paper2),0.75)]"
-                              onClick={() => toggleDefinitionLike(d.id)}
-                            >
-                              <Heart
-                                className={cn("h-4 w-4", d.likedByMe ? "text-[rgb(var(--accent))]" : "text-[rgba(var(--ink2),0.9)]")}
-                                fill={d.likedByMe ? "currentColor" : "none"}
-                              />
-                              <span>{d.likeCount ?? 0}</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-
-                  <div className="mt-2 rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper2),0.4)] p-4">
-                    <div className="grid gap-2">
-                      <div className="text-xs text-[rgb(var(--ink2))]">添加释义（词性 + 中文释义）</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <select
-                          value={defPos}
-                          onChange={(e) => setDefPos(e.target.value as (typeof POS_OPTIONS)[number])}
-                          className="col-span-1 rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.6)] px-3 py-2 text-sm outline-none"
-                        >
-                          {POS_OPTIONS.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          value={defMeaning}
-                          onChange={(e) => setDefMeaning(e.target.value)}
-                          placeholder="中文释义"
-                          className="col-span-2 rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.6)] px-3 py-2 text-sm outline-none"
-                        />
-                      </div>
-                      {defError ? <div className="text-xs text-[rgb(var(--ink2))]">提交失败：{defError}</div> : null}
-                      <button
-                        type="button"
-                        disabled={defSubmitting}
-                        className={cn(
-                          "inline-flex items-center justify-center rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--accent),0.85)] px-4 py-2 text-sm font-[650] text-[rgb(var(--paper))] transition hover:bg-[rgba(var(--accent),0.95)]",
-                          defSubmitting ? "opacity-70" : "",
-                        )}
-                        onClick={async () => {
-                          setDefError(null)
-                          if (!user?.username || !token) {
-                            setDefError("请先登录")
-                            return
-                          }
-                          const pos = defPos.trim()
-                          const meaningZh = defMeaning.trim()
-                          if (!pos || !meaningZh) {
-                            setDefError("请填写词性和中文释义")
-                            return
-                          }
-                          setDefSubmitting(true)
-                          const r = await authedPost(`/api/word/${encodeURIComponent(decoded)}/definitions`, { pos, meaningZh })
-                          setDefSubmitting(false)
-                          if (!r.ok) {
-                            setDefError("error" in r ? r.error : "request_failed")
-                            return
-                          }
-                          const created = r.json?.definition as DefinitionItem | undefined
-                          if (created) {
-                            setDefinitions((prev) => [created, ...prev])
-                            setDefPos("n.")
-                            setDefMeaning("")
-                          }
-                        }}
-                      >
-                        {defSubmitting ? "发送中…" : "发送"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
+            <div className="grid min-w-[760px] grid-cols-2 gap-4">
               <section className="rounded-3xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.55)] p-5 shadow-[0_16px_40px_rgba(var(--shadow),var(--shadow-a))]">
                 <div className="font-[var(--font-display)] text-[16px] font-[650]">记忆方法</div>
                 <div className="mt-3 grid gap-3">
@@ -527,6 +707,28 @@ export default function WordDetail() {
           </div>
         </div>
       </div>
+
+      <DefinitionDetailDialog
+        open={defDetailOpen}
+        item={selectedDefinition}
+        onClose={() => {
+          setDefDetailOpen(false)
+          setDefDetailItemId(null)
+        }}
+        onToggleLike={toggleDefinitionLike}
+      />
+
+      <DefinitionAddDialog
+        open={defAddOpen}
+        pos={defPos}
+        meaning={defMeaning}
+        submitting={defSubmitting}
+        error={defError}
+        onClose={() => setDefAddOpen(false)}
+        onPosChange={setDefPos}
+        onMeaningChange={setDefMeaning}
+        onSubmit={submitDefinition}
+      />
     </div>
   )
 }
