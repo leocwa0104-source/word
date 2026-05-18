@@ -45,7 +45,7 @@ type WordDetailPayload = {
   error?: string
 }
 
-const POS_OPTIONS = ["n.", "v.", "adj.", "adv.", "pron.", "num.", "art.", "prep.", "conj.", "int."] as const
+const POS_OPTIONS = ["/", "n.", "v.", "adj.", "adv.", "pron.", "num.", "art.", "prep.", "conj.", "int."] as const
 
 function formatTime(input: string): string {
   try {

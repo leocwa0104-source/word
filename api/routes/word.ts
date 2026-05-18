@@ -4,7 +4,7 @@ import { verifyJwt } from '../lib/jwt.js'
 
 const router = Router()
 
-const ALLOWED_POS = new Set(['n.', 'v.', 'adj.', 'adv.', 'pron.', 'num.', 'art.', 'prep.', 'conj.', 'int.'])
+const ALLOWED_POS = new Set(['/', 'n.', 'v.', 'adj.', 'adv.', 'pron.', 'num.', 'art.', 'prep.', 'conj.', 'int.'])
 
 function normalizeWordParam(raw: string): { word: string; key: string } | null {
   if (!raw) return null
