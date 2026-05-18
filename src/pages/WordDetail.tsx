@@ -243,7 +243,7 @@ function DefinitionRow({ item, onOpen }: DefinitionRowProps) {
   return (
     <button
       type="button"
-      className="w-full rounded-2xl px-2 py-2 text-left transition hover:bg-[rgba(var(--paper),0.25)]"
+      className="inline-flex items-baseline rounded-md px-1 py-0.5 text-sm text-[rgb(var(--ink2))] transition hover:bg-[rgba(var(--paper),0.25)]"
       onDoubleClick={(e) => {
         const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
         onOpen(item, { left: r.left, top: r.top, width: r.width, height: r.height })
@@ -263,9 +263,7 @@ function DefinitionRow({ item, onOpen }: DefinitionRowProps) {
       onPointerLeave={clearTimer}
       onPointerMove={clearTimer}
     >
-      <div className="text-sm text-[rgb(var(--ink2))]">
-        {item.pos} / {item.meaningZh}
-      </div>
+      {item.pos} / {item.meaningZh}
     </button>
   )
 }
@@ -489,33 +487,32 @@ export default function WordDetail() {
 
           <div className="mt-5">
             <div className="text-xs text-[rgba(var(--ink2),0.9)]">释义</div>
-            <div className="mt-2 grid gap-2">
-              {definitions.length === 0 ? (
-                <div className="text-sm text-[rgb(var(--ink2))]">暂无释义。</div>
-              ) : (
-                definitions.map((d) => (
+            <div className="mt-2 flex flex-wrap items-center">
+              {definitions.length === 0 ? <span className="text-sm text-[rgb(var(--ink2))]">暂无释义</span> : null}
+              {definitions.map((d, idx) => (
+                <span key={d.id} className="inline-flex items-baseline">
                   <DefinitionRow
-                    key={d.id}
                     item={d}
-                      onOpen={(item, rect) => {
-                        setDefPopoverItemId(item.id)
-                        setDefPopoverAnchor(rect)
-                        setDefPopoverOpen(true)
-                      }}
+                    onOpen={(item, rect) => {
+                      setDefPopoverItemId(item.id)
+                      setDefPopoverAnchor(rect)
+                      setDefPopoverOpen(true)
+                    }}
                   />
-                ))
-              )}
+                  {idx < definitions.length - 1 ? <span className="text-sm text-[rgb(var(--ink2))]">，</span> : null}
+                </span>
+              ))}
 
               <button
                 type="button"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.25)] px-4 py-3 text-sm text-[rgb(var(--ink2))] transition hover:bg-[rgba(var(--paper),0.4)]"
+                className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[rgba(var(--hairline),var(--hairline-a))] bg-[rgba(var(--paper),0.25)] text-[rgb(var(--ink2))] transition hover:bg-[rgba(var(--paper),0.4)]"
                 onClick={() => {
                   setDefError(null)
                   setDefAddOpen(true)
                 }}
+                aria-label="添加释义"
               >
                 <Plus className="h-4 w-4" />
-                添加释义
               </button>
             </div>
           </div>
